@@ -1,26 +1,37 @@
 
-export function render(vnode, parent) {
+export function render(vnode, parent, comp, olddom) {
   let dom
   if (typeof vnode === 'string') { // 文本节点直接渲染
     dom = document.createTextNode(vnode)
-    parent.appendChild(dom)
+    comp && (comp.__rendered = dom)
+
+    if (olddom) parent.replaceChild(dom, olddom)
+    else parent.appendChild(dom)
   }
 
   if (typeof vnode.type === 'string') { // dom 节点
     dom = document.createElement(vnode.type)
+
+    comp && (comp.__rendered = dom)
+    console.log(comp, olddom)
     setAttrs(dom, vnode.props) // props 已经被createElement 解析成对象
-    parent.appendChild(dom)
+
+    if (olddom) parent.replaceChild(dom, olddom)
+    else parent.appendChild(dom)
 
     for(let i = 0; i < vnode.children.length; i++) {
-      render(vnode.children[i], dom) // 递归 render children
+      render(vnode.children[i], dom, null, null) // 递归 render children
     }
   }
 
   if (typeof vnode.type === 'function') { // class 组件
     let func = vnode.type
     let inst = new func(vnode.props) // props 已经被createElement 解析成对象
+
+    comp && (comp.__rendered = inst)
+
     let innerVNode = inst.render()
-    render(innerVNode, parent)
+    render(innerVNode, parent, inst, olddom)
   }
 }
 
