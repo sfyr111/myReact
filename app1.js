@@ -1,11 +1,11 @@
-import { render, createElement, Component } from './src/react'
+import { render, createElement, Component } from './src/code1/react'
 
 const React = {}
 React.createElement = createElement
 React.Component = Component
 
 
-class Count extends React.Component {
+class Color extends React.Component {
   render() {
     return (
       <div style={{ color: this.props.color }}>color is: {this.props.color}</div>
@@ -30,7 +30,7 @@ class App extends React.Component {
   render() {
     return (
       <div onClick={this.handleClick.bind(this)}>
-        <Count color={this.state.color} />
+        <Color color={this.state.color} />
       </div>
     )
   }

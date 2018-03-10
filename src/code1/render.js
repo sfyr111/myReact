@@ -1,4 +1,3 @@
-
 export function render(vnode, parent, comp, olddom) {
   let dom
   if (typeof vnode === 'string') { // 文本节点直接渲染
@@ -13,7 +12,6 @@ export function render(vnode, parent, comp, olddom) {
     dom = document.createElement(vnode.type)
 
     comp && (comp.__rendered = dom)
-    console.log(comp, olddom)
     setAttrs(dom, vnode.props) // props 已经被createElement 解析成对象
 
     if (olddom) parent.replaceChild(dom, olddom)
