@@ -46,8 +46,7 @@ function createNewDom(vnode, parent, comp, olddom) {
   comp && (comp.__rendered = dom)
   setAttrs(dom, vnode.props)
 
-  if (olddom) parent.replaceChild(dom, olddom)
-  else parent.appendChild(dom)
+  parent.appendChild(dom)
 
   for (let i = 0; i < vnode.children.length; i++) {
     render(vnode.children[i], dom, null, null)
@@ -155,6 +154,7 @@ function diffDOM(vnode, parent, comp, olddom) {
 
   let olddomChild = olddom.firstChild
   for (let i = 0; i < vnode.children.length; i++) {
+    // 顺序固定，有缺点，原来是replaceChild，现在对dom 或 text 节点进行重新render
     render(vnode.children[i], olddom, null, olddomChild)
     olddomChild = olddomChild && olddomChild.nextSibling
   }
