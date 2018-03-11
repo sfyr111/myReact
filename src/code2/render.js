@@ -5,14 +5,19 @@
  * @param comp {Component} 组件
  * @param olddom {HTMLElemnet}
  */
+import { diffObject } from './util'
+
 export function render(vnode, parent, comp, olddom) {
   let dom
-  if (typeof vnode === 'string') { // 文本节点直接渲染
-    dom = document.createTextNode(vnode)
-    comp && (comp.__rendered = dom)
+  if (typeof vnode === 'string' || typeof vnode === 'number') { // 文本节点直接渲染
+    if (olddom && olddom.nodeType === 3) { // 是一个文本节点
+      if (olddom.nodeValue !== vnode) olddom.nodeValue = vnode
+    } else {
+      dom = document.createTextNode(vnode)
 
-    if (olddom) parent.replaceChild(dom, olddom)
-    else parent.appendChild(dom)
+      if (olddom) parent.replaceChild(dom, olddom)
+      else parent.appendChild(dom)
+    }
   }
 
   if (typeof vnode.type === 'string') { // dom 节点
@@ -20,17 +25,6 @@ export function render(vnode, parent, comp, olddom) {
       createNewDom(vnode, parent, comp, olddom)
     } else {
       diffDOM(vnode, parent, comp, olddom)
-    }
-    // dom = document.createElement(vnode.type)
-
-    comp && (comp.__rendered = dom)
-    setAttrs(dom, vnode.props) // props 已经被createElement 解析成对象
-
-    if (olddom) parent.replaceChild(dom, olddom)
-    else parent.appendChild(dom)
-
-    for (let i = 0; i < vnode.children.length; i++) {
-      render(vnode.children[i], dom, null, null) // 递归 render children
     }
   }
 
@@ -42,6 +36,21 @@ export function render(vnode, parent, comp, olddom) {
 
     let innerVNode = inst.render()
     render(innerVNode, parent, inst, olddom)
+  }
+}
+
+function createNewDom(vnode, parent, comp, olddom) {
+  let dom = document.createElement(vnode.type)
+
+  dom.__vnode = vnode
+  comp && (comp.__rendered = dom)
+  setAttrs(dom, vnode.props)
+
+  if (olddom) parent.replaceChild(dom, olddom)
+  else parent.appendChild(dom)
+
+  for (let i = 0; i < vnode.children.length; i++) {
+    render(vnode.children[i], dom, null, null)
   }
 }
 
@@ -139,10 +148,23 @@ function diffAttrs(dom, { left: newProps, right: oldProps }) {
 }
 
 function diffDOM(vnode, parent, comp, olddom) {
-  const { onlyInLeft, onlyInRight, bothIn } = diffDOM(vnode.props, olddom.__vnode.props)
+  const { onlyInLeft, onlyInRight, bothIn } = diffObject(vnode.props, olddom.__vnode.props)
   setAttrs(olddom, onlyInLeft) // 添加新属性
   removeAttrs(olddom, onlyInRight) // 删除旧属性
   diffAttrs(olddom, bothIn) // 比较且更新新旧属性的不同
 
+  let olddomChild = olddom.firstChild
+  for (let i = 0; i < vnode.children.length; i++) {
+    render(vnode.children[i], olddom, null, olddomChild)
+    olddomChild = olddomChild && olddomChild.nextSibling
+  }
+
+  while (olddomChild) {
+    let next = olddomChild.nextSibling
+    olddom.removeChild(olddomChild)
+    olddomChild = next
+  }
+
+  olddom.__vnode = vnode
 }
 
