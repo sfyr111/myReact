@@ -13,7 +13,7 @@ export default class Component {
       let olddom = getDOM(this) // 获取渲染此实例的 olddom
       const startTime = new Date().getTime()
       render(vnode, olddom.parentNode, this, olddom)
-      console.log("duration:", new Date().getTime() - startTime)
+      console.log("duration for setState:", new Date().getTime() - startTime)
     }, 0)
   }
 }

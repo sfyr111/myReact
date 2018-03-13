@@ -4,44 +4,39 @@ const React = {}
 React.createElement = createElement
 React.Component = Component
 
-class AppWithNoVDOM extends Component {
+const listStyle = {
+  fontSize: '12px',
+  height: '20px',
+  textAlign: 'center',
+  margin:'5px',
+  padding: '5px',
+  border:'1px solid',
+  width: '100px',
+}
+
+class App extends Component {
   constructor(props) {
     super(props)
-  }
-
-  testApp3() {
-    let result = []
-    for(let i = 0; i < 10000 ; i++) {
-      result.push(<div style={{
-        width: '30px',
-        color: 'red',
-        fontSize: '12px',
-        fontWeight: 600,
-        height: '20px',
-        textAlign: 'center',
-        margin:'5px',
-        padding: '5px',
-        border:'1px solid red',
-        position: 'relative',
-        left: '10px',
-        top: '10px',
-      }} title={i} >{i}</div>)
+    this.state = {
+      number: 10000
     }
-    return result
   }
 
   render() {
+    const list = new Array(this.state.number).fill('item')
     return (
       <div
         width={100}>
-        <a  onClick={e => {
-          this.setState({})
-        }}>click me</a>
-        {this.testApp3()}
+        <button onClick={e => {
+          this.setState({
+            number: this.state.number
+          })
+        }}>click me</button>
+        {list.map((item, index) => <div key={item + index} style={listStyle}>{`${item}:${index}`}</div>)}
       </div>
     )
   }
 }
 const startTime = new Date().getTime()
-render(<AppWithNoVDOM />, document.getElementById('app'))
-console.log("duration:", new Date().getTime() - startTime)
+render(<App />, document.getElementById('app'))
+console.log("duration for render:", new Date().getTime() - startTime)

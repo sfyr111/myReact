@@ -24,7 +24,7 @@ export function render(vnode, parent, comp, olddom) {
     if (!olddom || olddom.nodeName !== vnode.type.toUpperCase()) {
       createNewDom(vnode, parent, comp, olddom)
     } else {
-      diffDOM(vnode, parent, comp, olddom)
+      diffDOM(vnode, olddom)
     }
   }
 
@@ -39,7 +39,7 @@ export function render(vnode, parent, comp, olddom) {
   }
 }
 
-function createNewDom(vnode, parent, comp, olddom) {
+function createNewDom(vnode, parent, comp) {
   let dom = document.createElement(vnode.type)
 
   dom.__vnode = vnode
@@ -146,7 +146,13 @@ function diffAttrs(dom, { left: newProps, right: oldProps }) {
   })
 }
 
-function diffDOM(vnode, parent, comp, olddom) {
+/**
+ *
+ * @param vnode {object} 即将更新的vnode
+ * @param olddom {HTMLElement}
+ *          __vnode (object) 渲染olddom 的vnode 标记
+ */
+function diffDOM(vnode, olddom) {
   const { onlyInLeft, onlyInRight, bothIn } = diffObject(vnode.props, olddom.__vnode.props)
   setAttrs(olddom, onlyInLeft) // 添加新属性
   removeAttrs(olddom, onlyInRight) // 删除旧属性
@@ -159,12 +165,11 @@ function diffDOM(vnode, parent, comp, olddom) {
     olddomChild = olddomChild && olddomChild.nextSibling
   }
 
-  while (olddomChild) {
+  while (olddomChild) { // 递归后删除所有 olddom
     let next = olddomChild.nextSibling
     olddom.removeChild(olddomChild)
     olddomChild = next
   }
 
-  olddom.__vnode = vnode
+  olddom.__vnode = vnode // 不忘重新标记
 }
-
