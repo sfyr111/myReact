@@ -2,29 +2,27 @@
  *
  * @param vnode {object} 虚拟dom
  * @param parent {HTMLElement}
- * @param comp {Component} 组件
+ * @param comp {Component | null} 此组件渲染了此vnode，为null 时渲染的
  * @param olddom {HTMLElemnet}
+ * @param myIndex {number}
  */
 import { diffObject, getDOM } from './util'
 
-/**
- *
- * @param vnode {Object}
- * @param parent {HTMLElement}
- * @param comp {Component | null} 为null 为dom 渲染 非组件渲染
- * @param olddomOrComp {HTMLElement | Component}
- * @param myIndex {number}
- */
-export function render(vnode, parent, comp, olddomOrComp, myIndex) {
+export function render(vnode, parent) {
+  parent.__rendered = [] // 为 document.getElementById('root') 初始化__rendered
+  _render(vnode, parent, null, null, 0)
+}
+
+function _render(vnode, parent, comp, olddomOrComp, myIndex) {
   let dom
   if (typeof vnode === 'string' || typeof vnode === 'number') { // 文本节点直接渲染
     if (olddomOrComp && olddomOrComp.nodeType === 3) { // 是一个文本节点
       if (olddomOrComp.nodeValue !== vnode) olddomOrComp.nodeValue = vnode
     } else {
       dom = document.createTextNode(vnode)
-      parent.__rendered[myIndex] = dom // comp 为 null 组件实例不会渲染文本节点
+      parent.__rendered[myIndex] = dom // comp === null
 
-      setNewDom(parent, dom, myIndex)
+      setNewDom(parent, dom, myIndex) // 根据myIndex 找到设置dom
     }
   }
 
@@ -36,21 +34,36 @@ export function render(vnode, parent, comp, olddomOrComp, myIndex) {
     }
   }
 
-  if (typeof vnode.type === 'function') {
+  if (typeof vnode.type === 'function') { // class 组件
     let func = vnode.type
     let inst
     if (olddomOrComp && olddomOrComp instanceof func) {
       inst = olddomOrComp
+      inst.componentWillReceiveProps && inst.componentWillReceiveProps(vnode.props)
+
+      let shoudUpdate
+      if (inst.shouldComponentUpdate) { // props 改变触发 shouldComponentUpdate
+        shoudUpdate = inst.shouldComponentUpdate(vnode.props, olddomOrComp.state)
+      } else shoudUpdate = true
+
+      shoudUpdate && inst.componentWillUpdate && inst.componentWillUpdate(vnode.props, olddomOrComp.state) // shouldComponentUpdate 触发会触发 componentWillUpdate
+
       inst.props = vnode.props
+      if (!shoudUpdate) return
     } else {
-      inst = new func(vnode.props)
+      inst = new func(vnode.props) // props 已经被createElement 解析成对象
+      inst.componentWillMount && inst.componentWillMount.call()
 
       if (comp) comp.__rendered = inst
-      else parent.__rendered[myIndex] = inst // dom 渲染
+      else parent.__rendered[myIndex] = inst
     }
 
-    let innerVNode = inst.render()
-    render(innerVNode, parent, inst, inst.__rendered, myIndex)
+    let innerVNode = inst._render()
+    _render(innerVNode, parent, inst, inst.__rendered, myIndex)
+
+    if (olddomOrComp && olddomOrComp instanceof func) {
+      inst.componentDidUpdate && inst.componentDidUpdate.call()
+    } else inst.componentDidMount && inst.componentDidMount.call()
   }
 }
 
@@ -63,18 +76,18 @@ function setNewDom(parent, newDom, myIndex) {
 function createNewDom(vnode, parent, comp, olddomOrComp, myIndex) {
   let dom = document.createElement(vnode.type)
 
-  dom.__rendered = [] // 创建dom 时 初始的 __rendered 未数组
+  dom.__rendered = [] // 创建dom时初始化
   dom.__vnode = vnode
 
-  if (comp) comp.__rendered = dom
-  else parent.__rendered[myIndex] = dom
+  if (comp) comp.__rendered = dom // 复用组件
+  else parent.__rendered[myIndex] = dom // 直接dom 渲染的
 
   setAttrs(dom, vnode.props)
 
   setNewDom(parent, dom, myIndex)
 
   for (let i = 0; i < vnode.children.length; i++) {
-    render(vnode.children[i], dom, null, null, i) // 标记位置
+    _render(vnode.children[i], dom, null, null, i)
   }
 }
 
@@ -176,6 +189,7 @@ function diffAttrs(dom, { left: newProps, right: oldProps }) {
  * @param vnode {object} 即将更新的vnode
  * @param olddom {HTMLElement}
  *          __vnode (object) 渲染olddom 的vnode 标记
+ *          __rendered {array | object} 标记渲染的元素
  */
 function diffDOM(vnode, parent, comp, olddom) {
   const { onlyInLeft, onlyInRight, bothIn } = diffObject(vnode.props, olddom.__vnode.props)
@@ -192,7 +206,19 @@ function diffDOM(vnode, parent, comp, olddom) {
     _render(vnode.children[i], olddom, null, renderedArr[i], i)
   }
 
-  willRemoveArr.forEach(el => olddom.removeChild(getDOM(el)))
+  willRemoveArr.forEach(el => {
+    recoveryComp(el)
+    olddom.removeChild(getDOM(el))
+  })
 
   olddom.__vnode = vnode // 不忘重新标记
+}
+
+function recoveryComp(comp) {
+  if (comp instanceof Component) {
+    comp.componentWillUnmount && comp.componentWillUnmount.call()
+    recoveryComp(comp.__rendered)
+  } else if (comp.__rendered instanceof Array) { // __rendered = [] 普通dom
+    comp.__rendered.forEach(el => recoveryComp(el))
+  } else return // 文本节点
 }
